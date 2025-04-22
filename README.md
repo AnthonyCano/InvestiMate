@@ -1,4 +1,2 @@
 # InvestiMate
---
-
-Project repo for tracking 407 project.
+Project repo for tracking CS 407 project.
