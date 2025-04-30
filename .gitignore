@@ -24,3 +24,6 @@ hs_err_pid*
 replay_pid*
 
 .venv/
+
+# ignoring intellij ide file
+.idea/
