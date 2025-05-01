@@ -19,30 +19,30 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     // Getter function for the ID
-    private Long getId() {
+    public Long getId() {
         return id;
     }
     // Setter function for set ID
-    private void setID(Long id){
+    public void setID(Long id){
         this.id = id;
     }
 
     // User Name
     private String name;
-    private String getName(){
+    public String getName(){
         return name;
     }
-    private void setName(String Name){
+    public void setName(String Name){
         this.name = name;
     }
 
     // Email
     @Column(nullable = false, unique = true)
     private String email;
-    private String getEmail(){
+    public String getEmail(){
         return email;
     }
-    private void setEmail(String email){
+    public void setEmail(String email){
         this.email = email;
     }
 
