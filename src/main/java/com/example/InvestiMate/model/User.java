@@ -7,7 +7,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Column;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
+
 import java.time.LocalDateTime;
 
 @Entity
@@ -23,7 +23,7 @@ public class User {
         return id;
     }
     // Setter function for set ID
-    public void setID(Long id){
+    public void setId(Long id){
         this.id = id;
     }
 
