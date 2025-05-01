@@ -3,8 +3,7 @@ package com.example.InvestiMate.controller;
 // The REST controller for our user
 import com.example.InvestiMate.model.User;
 import com.example.InvestiMate.repository.UserRepository;
-import org.springframework.beans.factory.annotation.Autowire;  // Tells Spring to auto-inject the required dependency (UserRepository) via dependency injection
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Autowired; // Tells Spring to auto-inject the required dependency (UserRepository) via dependency injection
 import org.springframework.web.bind.annotation.*; // Provides the REST-specific annotations (@RestController, @RequestMapping, etc.)
 
 import java.util.List;
