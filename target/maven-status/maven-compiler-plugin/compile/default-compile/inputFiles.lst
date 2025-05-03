@@ -1,0 +1,8 @@
+/Users/dellis2/Desktop/repos/InvestiMate/src/main/java/com/example/InvestiMate/InvestiMateApplication.java
+/Users/dellis2/Desktop/repos/InvestiMate/src/main/java/com/example/InvestiMate/config/PasswordConfig.java
+/Users/dellis2/Desktop/repos/InvestiMate/src/main/java/com/example/InvestiMate/config/SecurityConfig.java
+/Users/dellis2/Desktop/repos/InvestiMate/src/main/java/com/example/InvestiMate/config/SupabaseConfig.java
+/Users/dellis2/Desktop/repos/InvestiMate/src/main/java/com/example/InvestiMate/controller/UserController.java
+/Users/dellis2/Desktop/repos/InvestiMate/src/main/java/com/example/InvestiMate/model/User.java
+/Users/dellis2/Desktop/repos/InvestiMate/src/main/java/com/example/InvestiMate/repository/UserRepository.java
+/Users/dellis2/Desktop/repos/InvestiMate/src/main/java/com/example/InvestiMate/services/UserService.java
