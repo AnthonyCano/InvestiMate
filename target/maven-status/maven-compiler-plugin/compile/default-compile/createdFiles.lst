@@ -1,9 +1,4 @@
-com\example\InvestiMate\model\User.class
-com\example\InvestiMate\repository\UserRepository.class
-com\example\InvestiMate\config\SecurityConfig.class
-com\example\InvestiMate\controller\UserController.class
-com\example\InvestiMate\services\UserService.class
-com\example\InvestiMate\config\SupabaseConfig.class
-com\example\InvestiMate\InvestiMateApplication.class
-META-INF\spring-configuration-metadata.json
-com\example\InvestiMate\config\PasswordConfig.class
+com/example/InvestiMate/config/PasswordConfig.class
+com/example/InvestiMate/InvestiMateApplication.class
+META-INF/spring-configuration-metadata.json
+com/example/InvestiMate/config/SecurityConfig.class

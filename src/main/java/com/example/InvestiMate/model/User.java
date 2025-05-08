@@ -1,67 +1,81 @@
 package com.example.InvestiMate.model;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.Table;
-import jakarta.persistence.Id;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Column;
-import org.hibernate.annotations.CreationTimestamp;
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
+import java.util.List;
 
 @Entity
 @Table(name = "users")
-
-public class User {
+@Getter
+@Setter
+public class User implements UserDetails {
     // User ID
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-    // Getter function for the ID
-    public Long getId() {
-        return id;
-    }
-    // Setter function for set ID
-    public void setId(Long id){
-        this.id = id;
-    }
+    @GeneratedValue(strategy = GenerationType.AUTO)
+    private Long id; // Unique UserID
 
-    // User Name
-    private String name;
-    public String getName(){
-        return name;
-    }
-    public void setName(String name){
-        this.name = name;
-    }
-
-    // Email
-    @Column(nullable = false, unique = true)
+    @Column(unique = true, nullable = false) // Sets unique username and doesn't allow null for username
+    private String userName; // Username
+                             
+    @Column(unique = true, nullable = false)
     private String email;
-    public String getEmail(){
-        return email;
-    }
-    public void setEmail(String email){
-        this.email = email;
-    }
 
-    // Password
+    @Column(nullable = false)
     private String password;
-    public String getPassword(){
-        return password;
-    }
-    public void setPassword(String password){
+
+    private boolean enabled;
+
+    @Column(name = "verification_code")
+    private String verificationCode;
+    @Column(name = "verification_expiration")
+    private LocalDateTime verificationCodeExpiresAt;
+
+    public User(String userName, String email, String password) {
+        this.userName = userName;
+        this.email = email;
         this.password = password;
     }
 
-    // Timestamp
-    @CreationTimestamp
-    private LocalDateTime createdAt;
-    public LocalDateTime getCreatedAt(){
-        return createdAt;
+
+    public User() {
     }
-    public void setCreatedAt(LocalDateTime createdAt){
-        this.createdAt = createdAt;
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return List.of();
+    }
+
+    @Override
+    public String getUsername() {
+        return userName;
+    }
+
+    @Override
+    public boolean isAccountNonExpired() {
+//        return UserDetails.super.isAccountNonExpired();
+        return true; // Just for now to test to make sure it works.
+    }
+
+    @Override
+    public boolean isAccountNonLocked() {
+//        return UserDetails.super.isAccountNonLocked();
+        return true;
+    }
+
+    @Override
+    public boolean isCredentialsNonExpired() {
+//        return UserDetails.super.isCredentialsNonExpired();
+        return true;
+    }
+
+    @Override
+    public boolean isEnabled() {
+//        return UserDetails.super.isEnabled();
+        return enabled;
     }
 }

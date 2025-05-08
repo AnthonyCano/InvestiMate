@@ -1,8 +1,8 @@
-C:\Users\Anthony\dev\InvestiMate\src\main\java\com\example\InvestiMate\config\PasswordConfig.java
-C:\Users\Anthony\dev\InvestiMate\src\main\java\com\example\InvestiMate\config\SecurityConfig.java
-C:\Users\Anthony\dev\InvestiMate\src\main\java\com\example\InvestiMate\config\SupabaseConfig.java
-C:\Users\Anthony\dev\InvestiMate\src\main\java\com\example\InvestiMate\controller\UserController.java
-C:\Users\Anthony\dev\InvestiMate\src\main\java\com\example\InvestiMate\InvestiMateApplication.java
-C:\Users\Anthony\dev\InvestiMate\src\main\java\com\example\InvestiMate\model\User.java
-C:\Users\Anthony\dev\InvestiMate\src\main\java\com\example\InvestiMate\repository\UserRepository.java
-C:\Users\Anthony\dev\InvestiMate\src\main\java\com\example\InvestiMate\services\UserService.java
+/Users/anthonycano-luna/dev/InvestiMate/src/main/java/com/example/InvestiMate/InvestiMateApplication.java
+/Users/anthonycano-luna/dev/InvestiMate/src/main/java/com/example/InvestiMate/config/PasswordConfig.java
+/Users/anthonycano-luna/dev/InvestiMate/src/main/java/com/example/InvestiMate/config/SecurityConfig.java
+/Users/anthonycano-luna/dev/InvestiMate/src/main/java/com/example/InvestiMate/config/SupabaseConfig.java
+/Users/anthonycano-luna/dev/InvestiMate/src/main/java/com/example/InvestiMate/controller/UserController.java
+/Users/anthonycano-luna/dev/InvestiMate/src/main/java/com/example/InvestiMate/model/User.java
+/Users/anthonycano-luna/dev/InvestiMate/src/main/java/com/example/InvestiMate/repository/UserRepository.java
+/Users/anthonycano-luna/dev/InvestiMate/src/main/java/com/example/InvestiMate/services/UserService.java
