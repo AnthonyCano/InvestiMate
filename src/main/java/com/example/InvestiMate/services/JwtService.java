@@ -1,31 +1,39 @@
 package com.example.InvestiMate.services;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.io.Decoders;
+import io.jsonwebtoken.security.Keys;
 
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.cglib.core.Signature;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
+import java.security.Key;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.function.Function;
 
 @Service
 public class JwtService {
 
-    @Value("${security.jwt.secret-key")
+    @Value("${security.jwt.secret-key}")
     private String secretKey;
 
-    @Value("${security.jwt.expiration.time")
+    @Value("${security.jwt.expiration.time}")
     private long jwtExpiration;
 
     public String extractUsername(String token){
         return extractClaim(token, Claims::getSubject);
     }
 
-    // <T> T just means the method will return whatever it needs to!
-    public <T> T extractClaim(String Token, Function<Claims,T> claimsResolver){
-        final Claims claims = extractAllCalims(token); // Claims: What we are requesting (username, expiration_time)
+    /**
+     * Extracts a specific claim from the token using the provided resolver function.
+     */
+    public <T> T extractClaim(String token, Function<Claims,T> claimsResolver){
+        final Claims claims = extractAllClaims(token); // Claims: What we are requesting (username, expiration_time)
         return claimsResolver.apply(claims); // Runs the provided appropriate function
     }
     
@@ -52,16 +60,36 @@ public class JwtService {
             .setSubject(userDetails.getUsername())
             .setIssuedAt(new Date(System.currentTimeMillis()))
             .setExpiration(new Date(System.currentTimeMillis() + expiration))
-            .signWith(getSignInKey(), SignatureAlgorithm.ES256)
+            .signWith(getSignInKey(), SignatureAlgorithm.HS256)
             .compact();
     }
 
     public boolean isTokenValid(String token, UserDetails userDetails){
-        // final just makes sure the username isn't chagned in the function
+        // final just makes sure the username isn't changed in the function
         final String username = extractUsername(token);
         return (username.equals(userDetails.getUsername()) && !isTokenExpired(token));
 
     }
 
-    private boolean isToken
+    // The private methods
+    private boolean isTokenExpired(String token){
+        return extractExpiration(token).before(new Date());
+    }
+
+    private Date extractExpiration(String token){
+        return extractClaim(token, Claims::getExpiration);
+    }
+
+    private Claims extractAllClaims(String token){
+        return Jwts
+            .parserBuilder()
+            .setSigningKey(getSignInKey())
+            .build()
+            .parseClaimsJws(token)
+            .getBody();
+    }
+    private Key getSignInKey(){
+        byte[] keyBytes = Decoders.BASE64.decode(secretKey);
+        return Keys.hmacShaKeyFor(keyBytes);
+    }
 }
