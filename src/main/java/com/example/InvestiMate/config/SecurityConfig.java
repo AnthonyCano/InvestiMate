@@ -5,14 +5,19 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 
 import com.example.InvestiMate.services.UserService;
+import org.springframework.security.web.authentication.AuthenticationFilter;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
 @EnableMethodSecurity
@@ -20,28 +25,35 @@ public class SecurityConfig {
 
     private final UserService userService;
     private final PasswordEncoder passwordEncoder;
-    
-    public SecurityConfig(UserService userService, PasswordEncoder passwordEncoder) {
+    // JWT AUTH STUFF
+    private final AuthenticationFilter authenticationFilter;
+    private final JwtAuthFilter jwtAuthFilter;
+
+
+    public SecurityConfig(UserService userService, PasswordEncoder passwordEncoder, AuthenticationFilter authenticationFilter, JwtAuthFilter jwtAuthFilter) {
         this.userService = userService;
         this.passwordEncoder = passwordEncoder;
+        this.authenticationFilter = authenticationFilter;
+        this.jwtAuthFilter = jwtAuthFilter;
     }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-          // disable CSRF so curl POST works without a CSRF token
-          .csrf(csrf -> csrf.disable())
+                .csrf(csrf -> csrf.disable())
 
-          // configure URL authorization
-          .authorizeHttpRequests(auth -> auth
-            // allow signup without auth
-            .requestMatchers(HttpMethod.POST, "/api/users").permitAll()
-            // all other requests require an authenticated user
-            .anyRequest().authenticated()
-          )
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(HttpMethod.POST, "/api/users").permitAll() // signup
+                        .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll() // login
+                        .anyRequest().authenticated()
+                )
 
-          // use HTTP Basic (you can swap to formLogin() or JWT later)
-          .httpBasic(Customizer.withDefaults());
+                // Tell Spring Security to NOT use sessions (stateless API)
+                .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+
+                // Add your custom filters here:
+                .addFilterBefore(authenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(jwtAuthFilter, AuthenticationFilter.class);
 
         return http.build();
     }
