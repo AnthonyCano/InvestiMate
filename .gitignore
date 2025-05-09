@@ -27,3 +27,6 @@ replay_pid*
 
 # ignoring intellij ide file
 .idea/
+
+# We need ot ignore the application.properties as well
+/src/main/resources/application.properties

@@ -1,8 +1,12 @@
 /Users/anthonycano-luna/dev/InvestiMate/src/main/java/com/example/InvestiMate/InvestiMateApplication.java
+/Users/anthonycano-luna/dev/InvestiMate/src/main/java/com/example/InvestiMate/config/ApplicationConfiguration.java
+/Users/anthonycano-luna/dev/InvestiMate/src/main/java/com/example/InvestiMate/config/JwtAuthFilter.java
 /Users/anthonycano-luna/dev/InvestiMate/src/main/java/com/example/InvestiMate/config/PasswordConfig.java
 /Users/anthonycano-luna/dev/InvestiMate/src/main/java/com/example/InvestiMate/config/SecurityConfig.java
 /Users/anthonycano-luna/dev/InvestiMate/src/main/java/com/example/InvestiMate/config/SupabaseConfig.java
 /Users/anthonycano-luna/dev/InvestiMate/src/main/java/com/example/InvestiMate/controller/UserController.java
 /Users/anthonycano-luna/dev/InvestiMate/src/main/java/com/example/InvestiMate/model/User.java
 /Users/anthonycano-luna/dev/InvestiMate/src/main/java/com/example/InvestiMate/repository/UserRepository.java
+/Users/anthonycano-luna/dev/InvestiMate/src/main/java/com/example/InvestiMate/services/EmailService.java
+/Users/anthonycano-luna/dev/InvestiMate/src/main/java/com/example/InvestiMate/services/JwtService.java
 /Users/anthonycano-luna/dev/InvestiMate/src/main/java/com/example/InvestiMate/services/UserService.java

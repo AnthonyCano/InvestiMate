@@ -1,0 +1,22 @@
+{
+  "groups": [
+    {
+      "name": "supabase.api",
+      "type": "com.example.InvestiMate.config.SupabaseConfig",
+      "sourceType": "com.example.InvestiMate.config.SupabaseConfig"
+    }
+  ],
+  "properties": [
+    {
+      "name": "supabase.api.key",
+      "type": "java.lang.String",
+      "sourceType": "com.example.InvestiMate.config.SupabaseConfig"
+    },
+    {
+      "name": "supabase.api.url",
+      "type": "java.lang.String",
+      "sourceType": "com.example.InvestiMate.config.SupabaseConfig"
+    }
+  ],
+  "hints": []
+}

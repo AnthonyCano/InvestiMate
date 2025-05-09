@@ -4,47 +4,33 @@ package com.example.InvestiMate.controller;
 // The REST controller for our user
 import com.example.InvestiMate.model.User;
 import com.example.InvestiMate.services.UserService;
-import org.springframework.beans.factory.annotation.Autowired; // Tells Spring to auto-inject the required dependency (UserRepository) via dependency injection
-import org.springframework.web.bind.annotation.*; // Provides the REST-specific annotations (@RestController, @RequestMapping, etc.)
-
 import java.util.List;
-import java.util.Optional;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
-@RestController // Tells spring it will handle https requests
-@RequestMapping("/api/users")
+
+@RequestMapping("/users")
+@RestController
 public class UserController {
-
-    @Autowired
-    private UserService userService;
-
-    // Get all users
-    @GetMapping
-    public List<User> getAllUsers(){
-        return userService.getAllUsers();
+    private final UserService userService;
+    public UserController(UserService userService) {
+        this.userService = userService;
     }
 
-    // Get user by ID
-    @GetMapping("/{id}")
-    public Optional<User> getUserById(@PathVariable Long id){
-        return userService.getUserById(id);
+    @GetMapping("/me")
+    public ResponseEntity<User> authenticatedUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        User currentUser = (User) authentication.getPrincipal();
+        return ResponseEntity.ok(currentUser);
     }
 
-    // Create a new user
-    @PostMapping
-    public User createUser(@RequestBody User user){
-        return userService.createUser(user);
-    }
-
-    // Update the existing user
-    @PutMapping("/{id}")
-    public User updateUser(@PathVariable Long id, @RequestBody User updatedUser) {
-        return userService.updateUser(id, updatedUser);
-    }
-
-    // Delete a user
-    @DeleteMapping("/{id}")
-    public void deleteUser(@PathVariable Long id) {
-        userService.deleteUser(id);
+    @GetMapping("/")
+    public ResponseEntity<List<User>> allUsers() {
+        List <User> users = userService.allUsers();
+        return ResponseEntity.ok(users);
     }
 }
-
