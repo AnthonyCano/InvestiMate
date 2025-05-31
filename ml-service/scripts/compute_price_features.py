@@ -1,7 +1,7 @@
-# File: ml-service/scripts/merge_fundamentals.py
+# File: ml-service/scripts/compute_price_features.py
 
-import pandas as pd
 import os
+import pandas as pd
 
 # ===========================
 # 1) HARDCODED FILEPATHS
@@ -10,86 +10,77 @@ PROJECT_ROOT       = os.path.abspath(os.path.join(os.path.dirname(__file__), "..
 RAW_DIR            = os.path.join(PROJECT_ROOT, "data", "raw")
 PROCESSED_DIR      = os.path.join(PROJECT_ROOT, "data", "processed")
 
-# Wide‐by‐year fundamentals (2010–2016)
-INDICATORS_CSV     = os.path.join(RAW_DIR, "indicators_by_company.csv")
-# Company metadata (only has company_id, name_latest, names_previous)
-COMPANIES_CSV      = os.path.join(RAW_DIR, "companies.csv")
+PRICES_CSV         = os.path.join(RAW_DIR, "prices.csv")
+PRICE_FEATURES_CSV = os.path.join(PROCESSED_DIR, "price_features.csv")
 
-# Output: cleaned fundamentals
-FUNDAMENTALS_CLEAN = os.path.join(PROCESSED_DIR, "fundamentals_clean.csv")
-
+# ===========================
+# 2) PARAMETERS
+# ===========================
+VOL_WINDOW = 252   # ~1 year of trading days
+MOM_WINDOW = 126   # ~6 months of trading days
 
 def main():
-    # 1) Ensure the processed directory exists
+    # 2.1 Ensure processed directory exists
     os.makedirs(PROCESSED_DIR, exist_ok=True)
 
-    # 2) Load the wide-format fundamentals CSV
-    print(f"Loading indicators (wide-by-year) from:\n  {INDICATORS_CSV}")
-    # Expect columns: company_id, indicator_id, 2010,2011,2012,2013,2014,2015,2016
+    # 2.2 First, load only the header row to see actual column names
+    print(f"Inspecting columns in {PRICES_CSV} …")
     try:
-        df_ind = pd.read_csv(
-            INDICATORS_CSV,
-            dtype={"company_id": str, "indicator_id": str}
-        )
+        df_header = pd.read_csv(PRICES_CSV, nrows=0)
     except FileNotFoundError:
         raise FileNotFoundError(
-            f"Could not find '{INDICATORS_CSV}'. Make sure the file exists under ml-service/data/raw/."
+            f"Could not find '{PRICES_CSV}'. Please ensure it exists under ml-service/data/raw/."
         )
+    print("  → Detected columns:", df_header.columns.tolist())
 
-    print(f"  → Read {df_ind.shape[0]:,} rows, columns = {list(df_ind.columns)}")
+    # 2.3 Now load using the correct column names.
+    #     Replace these with whatever your CSV actually has.
+    #     For example, if your header is ['Date', 'Ticker', 'Open', 'High', 'Low', 'Close', 'Volume'],
+    #     use those exact names here:
+    TIMESTAMP_COL = "Date"    # e.g., actual CSV header for date
+    SYMBOL_COL    = "Symbol"  # e.g., actual CSV header for symbol
+    CLOSE_COL     = "Close"   # e.g., actual CSV header for closing price
 
-    # 3) Extract the 2016 values for each (company_id, indicator_id)
-    if "2016" not in df_ind.columns:
-        raise KeyError(
-            f"Expected a column named '2016' in {INDICATORS_CSV}, but it was not found.\n"
-            f"Available columns: {list(df_ind.columns)}"
-        )
-    df_2016 = df_ind[["company_id", "indicator_id", "2016"]].copy()
-    df_2016.rename(columns={"2016": "value_2016"}, inplace=True)
-    print("  → Extracted 2016 values into 'value_2016' column.")
-
-    # 4) Pivot so each indicator_id becomes its own column (with the 2016 value)
-    print("Pivoting so that each indicator_id is a column (2016 values) …")
-    df_wide = df_2016.pivot_table(
-        index="company_id",
-        columns="indicator_id",
-        values="value_2016"
-    ).reset_index()
-    df_wide.columns.name = None  # remove the pivot_table name
-    print(f"  → Pivoted DataFrame has shape {df_wide.shape}")
-
-    # 5) Load company metadata from companies.csv
-    print(f"Loading company metadata from:\n  {COMPANIES_CSV}")
-    try:
-        df_comp = pd.read_csv(
-            COMPANIES_CSV,
-            dtype={"company_id": str, "name_latest": str, "names_previous": str}
-        )
-    except FileNotFoundError:
-        raise FileNotFoundError(
-            f"Could not find '{COMPANIES_CSV}'. Ensure it exists under ml-service/data/raw/."
-        )
-
-    print(f"  → Read {df_comp.shape[0]:,} rows, columns = {list(df_comp.columns)}")
-
-    # 6) Merge pivoted fundamentals with company metadata on company_id
-    print("Merging pivoted fundamentals with company metadata …")
-    df_merged = pd.merge(
-        df_wide,
-        df_comp[["company_id", "name_latest", "names_previous"]],
-        on="company_id",
-        how="left"
+    print(f"Loading price data using ([{TIMESTAMP_COL}], [{SYMBOL_COL}], [{CLOSE_COL}]) …")
+    df = pd.read_csv(
+        PRICES_CSV,
+        usecols=[TIMESTAMP_COL, SYMBOL_COL, CLOSE_COL],
+        parse_dates=[TIMESTAMP_COL],
+        dtype={SYMBOL_COL: "category"}
     )
-    print(f"  → After merge: {df_merged.shape[0]:,} rows × {df_merged.shape[1]:,} columns")
+    print(f"  → Loaded {df.shape[0]:,} rows for {df[SYMBOL_COL].nunique():,} unique tickers.")
 
-    # 7) (No filtering step – no exchange column exists)
-    # If you later add exchange/sector data elsewhere, you can filter accordingly.
+    # 2.4 Rename columns to standardized names used below
+    df.rename(columns={TIMESTAMP_COL: "date", SYMBOL_COL: "symbol", CLOSE_COL: "close"}, inplace=True)
 
-    # 8) Save the cleaned fundamentals to CSV
-    print(f"Saving cleaned fundamentals to:\n  {FUNDAMENTALS_CLEAN}")
-    df_merged.to_csv(FUNDAMENTALS_CLEAN, index=False)
-    print("Done: 'fundamentals_clean.csv' created under data/processed/.")
+    # 2.5 Sort by symbol then date to prepare for rolling computations
+    df = df.sort_values(["symbol", "date"])
 
+    # 2.6 Compute daily returns per ticker
+    df["return"] = df.groupby("symbol")["close"].pct_change()
+
+    # 2.7 Compute rolling volatility & momentum for each ticker
+    def compute_feats(grp):
+        grp = grp.copy()
+        grp["volatility"] = grp["return"].rolling(window=VOL_WINDOW, min_periods=VOL_WINDOW).std()
+        grp["momentum"]   = (grp["close"] / grp["close"].shift(MOM_WINDOW)) - 1.0
+        return grp
+
+    print("Computing rolling volatility & momentum per ticker …")
+    df_feats = df.groupby("symbol", group_keys=False).apply(compute_feats)
+
+    # 2.8 For each ticker, keep only the most recent row (latest date)
+    print("Selecting latest row per ticker …")
+    latest = df_feats.sort_values("date").groupby("symbol").tail(1)
+
+    # 2.9 Extract symbol, volatility, momentum; drop any NaNs
+    price_features = latest[["symbol", "volatility", "momentum"]].dropna(subset=["volatility", "momentum"])
+    print(f"  → {price_features.shape[0]:,} tickers have full VOL & MOM data (≥ {VOL_WINDOW} days history).")
+
+    # 2.10 Save to CSV
+    print(f"Saving price features to:\n  {PRICE_FEATURES_CSV}")
+    price_features.to_csv(PRICE_FEATURES_CSV, index=False)
+    print("Done: 'price_features.csv' created under data/processed/.")
 
 if __name__ == "__main__":
     main()

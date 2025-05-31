@@ -1,68 +1,87 @@
-# scripts/merge_fundamentals.py
+# File: ml-service/scripts/merge_fundamentals.py
 
 import pandas as pd
 import os
 
-# === CONFIGURATION ===
-RAW_DIR = os.path.join("data", "raw")
-INDICATORS_CSV = os.path.join(RAW_DIR, "indicators_by_company.csv")
-COMPANIES_CSV   = os.path.join(RAW_DIR, "companies.csv")
+# ===========================
+# 1) HARDCODED FILEPATHS
+# ===========================
+PROJECT_ROOT       = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+RAW_DIR            = os.path.join(PROJECT_ROOT, "data", "raw")
+PROCESSED_DIR      = os.path.join(PROJECT_ROOT, "data", "processed")
 
-PROCESSED_DIR = os.path.join("data", "processed")
-os.makedirs(PROCESSED_DIR, exist_ok=True)
-FUNDAMENTALS_CLEAN_CSV = os.path.join(PROCESSED_DIR, "fundamentals_clean.csv")
+INDICATORS_CSV     = os.path.join(RAW_DIR, "indicators_by_company.csv")
+COMPANIES_CSV      = os.path.join(RAW_DIR, "companies.csv")
+FUNDAMENTALS_CLEAN = os.path.join(PROCESSED_DIR, "fundamentals_clean.csv")
+
 
 def main():
-    print(f"Loading indicators from {INDICATORS_CSV} ...")
-    ind = pd.read_csv(
-        INDICATORS_CSV,
-        parse_dates=["periodEnding"],
-        dtype={"symbol": str, "indicator": str, "value": float}
-    )
-    print(f"  → {ind.shape[0]} rows for {ind['symbol'].nunique()} tickers.")
+    # 1) Ensure the processed directory exists
+    os.makedirs(PROCESSED_DIR, exist_ok=True)
 
-    print(f"Loading companies metadata from {COMPANIES_CSV} ...")
-    comp = pd.read_csv(
-        COMPANIES_CSV,
-        dtype={"symbol": str, "name": str, "exchange": str, "sector": str, "industry": str}
-    )
-    print(f"  → {comp.shape[0]} companies in metadata.")
+    # 2) Load the wide-format fundamentals CSV (2010–2016)
+    print(f"Loading indicators (wide-by-year) from:\n  {INDICATORS_CSV}")
+    try:
+        df_ind = pd.read_csv(
+            INDICATORS_CSV,
+            dtype={"company_id": str, "indicator_id": str}
+        )
+    except FileNotFoundError:
+        raise FileNotFoundError(
+            f"Could not find '{INDICATORS_CSV}'. Ensure it exists under ml-service/data/raw/."
+        )
+    print(f"  → Read {df_ind.shape[0]:,} rows, columns = {list(df_ind.columns)}")
 
-    # 1) Keep only the latest periodEnding for each (symbol, indicator)
-    print("Selecting latest indicator row for each (symbol, indicator) ...")
-    ind_sorted = ind.sort_values("periodEnding")
-    ind_latest = ind_sorted.groupby(["symbol", "indicator"], as_index=False).tail(1)
+    # 3) Extract the 2016 values for each (company_id, indicator_id)
+    if "2016" not in df_ind.columns:
+        raise KeyError(
+            f"Expected a column named '2016' in {INDICATORS_CSV}, but it was not found.\n"
+            f"Available columns: {list(df_ind.columns)}"
+        )
+    df_2016 = df_ind[["company_id", "indicator_id", "2016"]].copy()
+    df_2016.rename(columns={"2016": "value_2016"}, inplace=True)
+    print("  → Extracted 2016 values into 'value_2016' column.")
 
-    # 2) Pivot so each 'indicator' is its own column
-    print("Pivoting indicators into wide format ...")
-    features = ind_latest.pivot_table(
-        index="symbol",
-        columns="indicator",
-        values="value"
+    # 4) Pivot so each indicator_id becomes its own column (with the 2016 value)
+    print("Pivoting so that each indicator_id becomes a column (2016 values) …")
+    df_wide = df_2016.pivot_table(
+        index="company_id",
+        columns="indicator_id",
+        values="value_2016"
     ).reset_index()
-    # Now features.columns = ['symbol', <indicator1>, <indicator2>, ...]
+    df_wide.columns.name = None  # remove the pivot_table name
+    print(f"  → Pivoted DataFrame has shape {df_wide.shape}")
 
-    # 3) Merge in company metadata (sector, industry, exchange, name)
-    print("Merging with company metadata ...")
-    comp_small = comp[["symbol", "name", "exchange", "sector", "industry"]]
-    merged = pd.merge(
-        features,
-        comp_small,
-        on="symbol",
+    # 5) Load company metadata from companies.csv
+    print(f"Loading company metadata from:\n  {COMPANIES_CSV}")
+    try:
+        df_comp = pd.read_csv(
+            COMPANIES_CSV,
+            dtype={"company_id": str, "name_latest": str, "names_previous": str}
+        )
+    except FileNotFoundError:
+        raise FileNotFoundError(
+            f"Could not find '{COMPANIES_CSV}'. Ensure it exists under ml-service/data/raw/."
+        )
+    print(f"  → Read {df_comp.shape[0]:,} rows, columns = {list(df_comp.columns)}")
+
+    # 6) Merge pivoted fundamentals with company metadata on company_id
+    print("Merging pivoted fundamentals with company metadata …")
+    df_merged = pd.merge(
+        df_wide,
+        df_comp[["company_id", "name_latest", "names_previous"]],
+        on="company_id",
         how="left"
     )
-    print(f"  → After merge: {merged.shape[0]} tickers × {merged.shape[1]} columns.")
+    print(f"  → After merge: {df_merged.shape[0]:,} rows × {df_merged.shape[1]:,} columns")
 
-    # 4) Filter to U.S. exchanges (NYSE, NASDAQ)
-    print("Filtering to U.S. tickers (NYSE or NASDAQ) ...")
-    us_mask = merged["exchange"].isin(["NYSE", "NASDAQ"])
-    merged_us = merged[us_mask].copy()
-    print(f"  → {merged_us.shape[0]} tickers on NYSE/NASDAQ remain.")
+    # 7) No filtering on exchange/sector (companies.csv has no such columns)
 
-    # 5) Write out the cleaned fundamentals
-    print(f"Saving cleaned fundamentals to {FUNDAMENTALS_CLEAN_CSV} ...")
-    merged_us.to_csv(FUNDAMENTALS_CLEAN_CSV, index=False)
-    print("Done.")
+    # 8) Save the cleaned fundamentals to CSV
+    print(f"Saving cleaned fundamentals to:\n  {FUNDAMENTALS_CLEAN}")
+    df_merged.to_csv(FUNDAMENTALS_CLEAN, index=False)
+    print("Done: 'fundamentals_clean.csv' created under data/processed/.")
+
 
 if __name__ == "__main__":
     main()
