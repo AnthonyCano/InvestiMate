@@ -1,63 +1,95 @@
-# scripts/compute_price_features.py
+# File: ml-service/scripts/merge_fundamentals.py
 
-import os
 import pandas as pd
-import numpy as np
+import os
 
-# === CONFIGURATION ===
-RAW_DIR = os.path.join("data", "raw")
-PRICES_CSV = os.path.join(RAW_DIR, "prices.csv")
+# ===========================
+# 1) HARDCODED FILEPATHS
+# ===========================
+PROJECT_ROOT       = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+RAW_DIR            = os.path.join(PROJECT_ROOT, "data", "raw")
+PROCESSED_DIR      = os.path.join(PROJECT_ROOT, "data", "processed")
 
-PROCESSED_DIR = os.path.join("data", "processed")
-os.makedirs(PROCESSED_DIR, exist_ok=True)
-PRICE_FEATURES_CSV = os.path.join(PROCESSED_DIR, "price_features.csv")
+# Wide‐by‐year fundamentals (2010–2016)
+INDICATORS_CSV     = os.path.join(RAW_DIR, "indicators_by_company.csv")
+# Company metadata (only has company_id, name_latest, names_previous)
+COMPANIES_CSV      = os.path.join(RAW_DIR, "companies.csv")
 
-# Rolling window sizes (in trading days)
-VOL_WINDOW = 252      # ~1 year of trading days
-MOM_WINDOW = 126      # ~6 months of trading days
+# Output: cleaned fundamentals
+FUNDAMENTALS_CLEAN = os.path.join(PROCESSED_DIR, "fundamentals_clean.csv")
+
 
 def main():
-    print(f"Loading price data from {PRICES_CSV} ...")
-    df = pd.read_csv(
-        PRICES_CSV,
-        parse_dates=["date"],
-        dtype={"symbol": str, "open": float, "high": float, "low": float, "close": float, "volume": float}
+    # 1) Ensure the processed directory exists
+    os.makedirs(PROCESSED_DIR, exist_ok=True)
+
+    # 2) Load the wide-format fundamentals CSV
+    print(f"Loading indicators (wide-by-year) from:\n  {INDICATORS_CSV}")
+    # Expect columns: company_id, indicator_id, 2010,2011,2012,2013,2014,2015,2016
+    try:
+        df_ind = pd.read_csv(
+            INDICATORS_CSV,
+            dtype={"company_id": str, "indicator_id": str}
+        )
+    except FileNotFoundError:
+        raise FileNotFoundError(
+            f"Could not find '{INDICATORS_CSV}'. Make sure the file exists under ml-service/data/raw/."
+        )
+
+    print(f"  → Read {df_ind.shape[0]:,} rows, columns = {list(df_ind.columns)}")
+
+    # 3) Extract the 2016 values for each (company_id, indicator_id)
+    if "2016" not in df_ind.columns:
+        raise KeyError(
+            f"Expected a column named '2016' in {INDICATORS_CSV}, but it was not found.\n"
+            f"Available columns: {list(df_ind.columns)}"
+        )
+    df_2016 = df_ind[["company_id", "indicator_id", "2016"]].copy()
+    df_2016.rename(columns={"2016": "value_2016"}, inplace=True)
+    print("  → Extracted 2016 values into 'value_2016' column.")
+
+    # 4) Pivot so each indicator_id becomes its own column (with the 2016 value)
+    print("Pivoting so that each indicator_id is a column (2016 values) …")
+    df_wide = df_2016.pivot_table(
+        index="company_id",
+        columns="indicator_id",
+        values="value_2016"
+    ).reset_index()
+    df_wide.columns.name = None  # remove the pivot_table name
+    print(f"  → Pivoted DataFrame has shape {df_wide.shape}")
+
+    # 5) Load company metadata from companies.csv
+    print(f"Loading company metadata from:\n  {COMPANIES_CSV}")
+    try:
+        df_comp = pd.read_csv(
+            COMPANIES_CSV,
+            dtype={"company_id": str, "name_latest": str, "names_previous": str}
+        )
+    except FileNotFoundError:
+        raise FileNotFoundError(
+            f"Could not find '{COMPANIES_CSV}'. Ensure it exists under ml-service/data/raw/."
+        )
+
+    print(f"  → Read {df_comp.shape[0]:,} rows, columns = {list(df_comp.columns)}")
+
+    # 6) Merge pivoted fundamentals with company metadata on company_id
+    print("Merging pivoted fundamentals with company metadata …")
+    df_merged = pd.merge(
+        df_wide,
+        df_comp[["company_id", "name_latest", "names_previous"]],
+        on="company_id",
+        how="left"
     )
-    print(f"  → {df.shape[0]} rows loaded for {df['symbol'].nunique()} tickers.")
+    print(f"  → After merge: {df_merged.shape[0]:,} rows × {df_merged.shape[1]:,} columns")
 
-    # Sort by ticker + date to ensure rolling works correctly
-    df = df.sort_values(["symbol", "date"])
-    
-    # Compute daily returns per ticker
-    df["return"] = df.groupby("symbol")["close"].pct_change()
+    # 7) (No filtering step – no exchange column exists)
+    # If you later add exchange/sector data elsewhere, you can filter accordingly.
 
-    # Function to compute features for one ticker
-    def compute_feats(grp):
-        grp = grp.copy()
-        # 1-year volatility: rolling std of daily returns over VOL_WINDOW days
-        grp["volatility"] = grp["return"].rolling(window=VOL_WINDOW, min_periods=VOL_WINDOW).std()
-        # 6-month momentum: (close / close.shift(MOM_WINDOW)) - 1
-        grp["momentum"] = (grp["close"] / grp["close"].shift(MOM_WINDOW)) - 1.0
-        return grp
+    # 8) Save the cleaned fundamentals to CSV
+    print(f"Saving cleaned fundamentals to:\n  {FUNDAMENTALS_CLEAN}")
+    df_merged.to_csv(FUNDAMENTALS_CLEAN, index=False)
+    print("Done: 'fundamentals_clean.csv' created under data/processed/.")
 
-    print("Computing rolling volatility and momentum per ticker ...")
-    df_feats = df.groupby("symbol", group_keys=False).apply(compute_feats)
-
-    # For each ticker, keep only the last (most recent) row’s features
-    print("Selecting latest row per ticker ...")
-    latest = df_feats.sort_values("date").groupby("symbol").tail(1)
-
-    # We only need: symbol, volatility, momentum
-    price_features = latest[["symbol", "volatility", "momentum"]].copy()
-
-    # Drop tickers where volatility or momentum is NaN (due to insufficient history)
-    price_features = price_features.dropna(subset=["volatility", "momentum"])
-    print(f"  → {price_features.shape[0]} tickers have sufficient history for VOL and MOM.")
-
-    # Write to CSV
-    print(f"Saving price_features to {PRICE_FEATURES_CSV} ...")
-    price_features.to_csv(PRICE_FEATURES_CSV, index=False)
-    print("Done.")
 
 if __name__ == "__main__":
     main()
